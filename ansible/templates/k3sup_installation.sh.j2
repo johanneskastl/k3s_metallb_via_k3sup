@@ -25,7 +25,7 @@ k3sup install \
 --context k3s_metallb_via_k3sup \
 --tls-san 192.168.121.31 \
 --cluster \
---k3s-extra-args="--disable servicelb --node-taint node-role.kubernetes.io/master=true:NoSchedule"
+--k3s-extra-args="--disable servicelb"
 EOF
 echo ""
 echo "Command to install the other server nodes is:"
@@ -65,7 +65,7 @@ k3sup install \
 --local-path=kubeconfig_k3s_metallb_via_k3sup.yaml \
 --context k3s_metallb_via_k3sup \
 --cluster \
---k3s-extra-args="--disable servicelb --node-taint node-role.kubernetes.io/master=true:NoSchedule" || exit 1
+--k3s-extra-args="--disable servicelb" || exit 1
 echo ""
 echo "#######"
 echo ""
