@@ -3,3 +3,7 @@
 #
 .vagrant
 Vagrantfile.1
+
+# ignore the ssh key files created by Ansible and used by k3sup
+ssh_key_k3s_metallb_via_k3sup
+ssh_key_k3s_metallb_via_k3sup.pub
