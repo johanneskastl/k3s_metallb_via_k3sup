@@ -1,0 +1,92 @@
+#!/bin/bash
+
+#
+# {{ ansible_managed }}
+#
+
+echo "Your server nodes are:"
+{% for host in groups['k3sservers'] %}
+echo "  {{ hostvars[host]['inventory_hostname'] }} => {{ hostvars[host]['ansible_host'] }}"
+{% endfor %}
+echo ""
+echo "Your worker node(s) are:"
+{% for host in groups['k3sagents'] %}
+echo "  {{ hostvars[host]['inventory_hostname'] }}  => {{ hostvars[host]['ansible_host'] }}"
+{% endfor %}
+echo ""
+
+echo "Command to install the first server is:"
+cat <<EOF
+k3sup install \
+--host={{ hostvars[groups['k3sservers'][0]]['ansible_host'] }} \
+--user={{ hostvars[groups['k3sservers'][0]]['ansible_user'] }} \
+--ssh-key ./ssh_key_k3s_metallb_via_k3sup \
+--local-path=kubeconfig_k3s_metallb_via_k3sup.yaml \
+--context k3s_metallb_via_k3sup \
+--tls-san 192.168.121.31 \
+--cluster \
+--k3s-extra-args="--disable servicelb --node-taint node-role.kubernetes.io/master=true:NoSchedule"
+EOF
+echo ""
+echo "Command to install the other server nodes is:"
+cat <<EOF
+{% for additional_server in groups['k3sservers']%}
+{% if hostvars[additional_server]['ansible_host'] != hostvars[groups['k3sservers'][0]]['ansible_host']  %}
+k3sup join \
+--host={{ hostvars[additional_server]['ansible_host'] }} \
+--user={{ hostvars[additional_server]['ansible_user'] }} \
+--ssh-key ./ssh_key_k3s_metallb_via_k3sup \
+--server \
+--k3s-extra-args="--node-taint node-role.kubernetes.io/master=true:NoSchedule" \
+--server-ip {{ hostvars[groups['k3sservers'][0]]['ansible_host'] }}
+{% endif %}
+{% endfor %}
+EOF
+echo ""
+echo "Command to install agent nodes is:"
+cat <<EOF
+{% for agent in groups['k3sagents']%}
+k3sup join \
+--host={{ hostvars[agent]['ansible_host'] }} \
+--user={{ hostvars[agent]['ansible_user'] }} \
+--ssh-key ./ssh_key_k3s_metallb_via_k3sup \
+--server-ip {{ hostvars[groups['k3sservers'][0]]['ansible_host'] }}
+{% endfor %}
+EOF
+echo ""
+echo "Now executing the commands:"
+echo ""
+echo "#######"
+echo ""
+k3sup install \
+--host={{ hostvars[groups['k3sservers'][0]]['ansible_host'] }} \
+--user={{ hostvars[groups['k3sservers'][0]]['ansible_user'] }} \
+--ssh-key ./ssh_key_k3s_metallb_via_k3sup \
+--local-path=kubeconfig_k3s_metallb_via_k3sup.yaml \
+--context k3s_metallb_via_k3sup \
+--cluster \
+--k3s-extra-args="--disable servicelb --node-taint node-role.kubernetes.io/master=true:NoSchedule" || exit 1
+echo ""
+echo "#######"
+echo ""
+{% for additional_server in groups['k3sservers']%}
+{% if hostvars[additional_server]['ansible_host'] != hostvars[groups['k3sservers'][0]]['ansible_host']  %}
+k3sup join \
+--host={{ hostvars[additional_server]['ansible_host'] }} \
+--user={{ hostvars[additional_server]['ansible_user'] }} \
+--ssh-key ./ssh_key_k3s_metallb_via_k3sup \
+--server \
+--k3s-extra-args="--node-taint node-role.kubernetes.io/master=true:NoSchedule" \
+--server-ip {{ hostvars[groups['k3sservers'][0]]['ansible_host'] }} || exit 3
+echo ""
+echo "#######"
+echo ""
+{% endif %}
+{% endfor %}
+{% for agent in groups['k3sagents']%}
+k3sup join \
+--host={{ hostvars[agent]['ansible_host'] }} \
+--user={{ hostvars[agent]['ansible_user'] }} \
+--ssh-key ./ssh_key_k3s_metallb_via_k3sup \
+--server-ip {{ hostvars[groups['k3sservers'][0]]['ansible_host'] }} || exit 5
+{% endfor %}
